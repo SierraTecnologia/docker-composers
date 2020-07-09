@@ -1,0 +1,96 @@
+version: "3.0"
+
+services:
+
+  nginx:
+    image: sierratecnologia/nginx
+    restart: always
+    ports:
+      - "88:80"
+    volumes:
+      - ./docker/nginx_conf:/etc/nginx/conf.d
+      - ./:/var/www/html
+      - /usr/bin/ssh:/usr/bin/ssh
+    depends_on:
+      - php
+    networks:
+      - outside
+      - internal
+      
+  php:
+    build:
+      context: ./docker/php/
+      dockerfile: ./Dockerfile
+    command: bash -c "php-fpm"
+    environment:
+      PHP_XDEBUG_ENABLED: 1 # Set 1 to enable.
+      PHP_IDE_CONFIG: "serverName=docker"
+      XDEBUG_CONFIG: "remote_host=172.17.0.1"
+    volumes:
+      - ./:/var/www/html
+      - ~/.ssh:/root/.ssh
+      - ./docker/logs/xdebug/:/tmp/xdebug_log #Logs for Xdebug
+    restart: always
+    depends_on:
+      - db
+    networks:
+      - outside
+      - internal
+
+  redis:
+    image: redis:5.0
+    restart: always
+    # expose:
+    #   - "6379"
+    networks:
+      - internal
+    volumes:
+      - cachedata:/data
+
+  db:
+    image: mysql:5.7
+    volumes:
+      - datasql:/var/lib/mysql
+      - ./database/dumps:/dumps
+    environment:
+      MYSQL_ROOT_PASSWORD: A123456
+      MYSQL_DATABASE: girls
+      MYSQL_USER: girls
+      MYSQL_PASSWORD: A123456
+    networks:
+      - internal
+
+  # mongo:
+  #   image: mongo:3.2
+  #   volumes:
+  #     - db_data:/var/lib/mongo
+  #     - ./database/dumps:/dumps
+  #   environment:
+  #     MONGO_INITDB_ROOT_USERNAME: root
+  #     MONGO_INITDB_ROOT_PASSWORD: A123456
+
+  # elasticsearch:
+  #   image: elasticsearch:2.3.5
+  #   volumes:
+  #     - db_elastic:/usr/share/elasticsearch/data
+  #   ports:
+  #     - "9200:9200"
+  #     - "9300:9300"
+  #   environment:
+  #     - discovery.type=single-node
+  #   networks:
+  #     - internal
+
+volumes:
+  datasql:
+    driver: local
+  cachedata:
+    driver: local
+  db_elastic:
+    driver: local
+
+networks:
+  outside:
+    external: true
+  internal:
+    driver: bridge
