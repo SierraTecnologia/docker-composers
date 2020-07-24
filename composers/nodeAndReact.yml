@@ -1,0 +1,69 @@
+version: "3.0"
+
+services:
+
+  server:
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+    ports:
+      - "8080:8080"
+    command: npm start
+    volumes:
+      - ./:/usr/app
+      - /usr/app/node_modules
+    # env_file: ./server/.env # TODO - uncomment this to auto-load your .env file!
+    environment:
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true
+    depends_on:
+      - mongo
+    expose:
+      - "8080"
+    networks:
+      - outside
+      - internal
+      
+  client:
+    build:
+      context: ../admin-react/
+      dockerfile: ./Dockerfile
+    ports:
+      - "3000:3000"
+    command: npm start
+    volumes:
+      - ../admin-react/:/usr/app
+      - /usr/app/node_modules
+    depends_on:
+      - server
+    expose:
+      - "3000"
+    networks:
+      - outside
+      - internal
+
+  mongo:
+    image: mongo:3.2
+    volumes:
+      - mongo_data:/var/lib/mongo
+      - ../dumps:/dumps
+    # environment:
+    #   MONGO_INITDB_ROOT_USERNAME: root
+    #   MONGO_INITDB_ROOT_PASSWORD: A123456
+    expose:
+      - "27017"
+    networks:
+      - outside
+      - internal
+
+volumes:
+  mongo_data:
+    driver: local
+  cachedata:
+    driver: local
+
+networks:
+  outside:
+    external: true
+  internal:
+    driver: bridge
